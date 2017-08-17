@@ -3,8 +3,8 @@ import numpy as np
 import random
 
 window = [150,150]
-GAP = 10
-BATCH = 16
+GAP = 5
+BATCH = 64
 EPOCHS = 10
 
 files = ['Example1.col.jpg',
@@ -64,7 +64,11 @@ def make_ML_training_data(image, mask, balance=False):
     curr = 0
     for y in np.arange(window[0]/2,image.shape[0]-window[0]/2,GAP):
         for x in np.arange(window[1]/2,image.shape[1]-window[1]/2,GAP):
-            if balance and not mask[y,x] and random.random() < 0.95: continue
+            if balance:
+                if not mask[y,x] and random.random() < 0.85:
+                    continue
+                if mask[y,x] and random.random() < 0.25:
+                    continue
             patch = image[y-window[0]/2:y+window[0]/2,x-window[1]/2:x+window[1]/2]
             patch = np.expand_dims(patch, axis=2)
             data[curr,:,:,:] = patch.repeat(3,2)
@@ -109,15 +113,15 @@ def do_ML_processing():
 
     use_network = True
     load_network = True
-    train_network = False
+    train_network = True
 
     if train_network:
         data, labels = None, None
         for f in files:
             print 'Processing ',f
             img = skimage.io.imread(f)
-            img_data = skimage.measure.block_reduce( img[:,:,1].squeeze() , block_size=(2, 2), func=np.mean)
-            img_mask = skimage.measure.block_reduce( img[:,:,0] > img[:,:,1] , block_size=(2, 2), func=np.mean)
+            img_data = img[:,:,1].squeeze()
+            img_mask = img[:,:,0] > img[:,:,1]
 
             tdata,tlabels = make_ML_training_data(img_data, img_mask, balance=True)
 
@@ -129,7 +133,7 @@ def do_ML_processing():
 
     if use_network:
         if load_network:
-            model_file = 'my_model.h5'
+            model_file = 'my_model_2xdownsample_noedges.h5'
             model = load_ML(model_file)
         else:
             model = init_ML_model()
@@ -142,8 +146,8 @@ def do_ML_processing():
 
         img = skimage.io.imread(f)
 
-        img_data = skimage.measure.block_reduce( img[:,:,1].squeeze() , block_size=(2, 2), func=np.mean)
-        img_mask = skimage.measure.block_reduce( img[:,:,0] > img[:,:,1] , block_size=(2, 2), func=np.mean)
+        img_data = img[:,:,1].squeeze()
+        img_mask = img[:,:,0] > img[:,:,1]
         labelshape = (np.array(img_data.shape) - np.array(window)+[GAP,GAP])/GAP
 
         tdata,tlabels = make_ML_training_data(img_data, img_mask)
